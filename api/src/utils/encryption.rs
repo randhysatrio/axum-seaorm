@@ -1,4 +1,4 @@
-use crate::dto::Error;
+use crate::errors::Error;
 
 pub fn hash_password(password: String) -> String {
     bcrypt::hash(password, 14)

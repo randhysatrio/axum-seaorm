@@ -1,6 +1,6 @@
 use validator::Validate;
 
-use crate::dto::APIResult;
+use crate::errors::APIResult;
 
 pub mod auth;
 

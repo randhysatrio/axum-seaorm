@@ -1,7 +1,7 @@
 use ::entity::{prelude::User, user};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, QueryFilter, Set};
 
-use crate::dto::{APIResult, Error};
+use crate::errors::{APIResult, Error};
 use crate::utils::encryption::validate_password;
 
 pub struct AuthService;
@@ -59,7 +59,17 @@ impl AuthService {
                 Ok(user)
             }
         } else {
-            return Err(Error::WrongCredentials);
+            Err(Error::WrongCredentials)
+        }
+    }
+
+    pub async fn find_user_by_id(db: &DbConn, id: i32) -> APIResult<user::Model> {
+        let user = User::find_by_id(id).one(db).await?;
+
+        if let Some(user) = user {
+            Ok(user)
+        } else {
+            Err(Error::InvalidToken)
         }
     }
 }

@@ -6,7 +6,7 @@ use std::env;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 
-mod dto;
+mod errors;
 mod handler;
 mod routes;
 mod services;

@@ -10,4 +10,3 @@ members = [".", "api", "migration", "entity"]
 
 [dependencies]
 api = { path = "api" }
-jsonwebtoken = "8.2.0"
