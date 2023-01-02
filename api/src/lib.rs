@@ -1,12 +1,16 @@
+use axum::http::Method;
 use axum::{Router, Server};
 use dotenvy::dotenv;
 use sea_orm::*;
 use std::env;
 use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 
-pub mod database;
-pub mod handler;
-pub mod routes;
+mod dto;
+mod handler;
+mod routes;
+mod services;
+mod utils;
 
 use routes::auth_routes;
 
@@ -29,7 +33,14 @@ pub async fn run() {
 
     let app_state = AppState { conn };
 
-    let root_router = Router::new().merge(auth_routes()).with_state(app_state);
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::PATCH])
+        .allow_origin(Any);
+
+    let root_router = Router::new()
+        .merge(auth_routes())
+        .with_state(app_state)
+        .layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 6969));
 
