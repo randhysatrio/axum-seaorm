@@ -109,7 +109,7 @@ pub async fn persistent_login(
     let db = &state.conn;
 
     let verified_token = verify_token(user_token.token())?;
-    let user_id = verified_token.claims.user_id;
+    let user_id = verified_token.user_id;
 
     let user = AuthService::find_user_by_id(db, user_id).await?;
     let token = generate_token(user.id)?;

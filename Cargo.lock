@@ -54,6 +54,7 @@ dependencies = [
  "entity",
  "jsonwebtoken",
  "lazy_static",
+ "migration",
  "sea-orm",
  "serde",
  "serde_json",

@@ -1,7 +1,8 @@
 use ::entity::{prelude::User, user};
+use chrono::Utc;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, QueryFilter, Set};
 
-use crate::errors::{APIResult, Error};
+use crate::errors::{APIResult, AppError};
 use crate::utils::encryption::validate_password;
 
 pub struct AuthService;
@@ -18,7 +19,7 @@ impl AuthService {
             .one(db)
             .await?
         {
-            return Err(Error::DuplicateUsername);
+            return Err(AppError::DuplicateUsername);
         }
 
         if let Some(_) = User::find()
@@ -26,18 +27,20 @@ impl AuthService {
             .one(db)
             .await?
         {
-            return Err(Error::DuplicateEmail);
+            return Err(AppError::DuplicateEmail);
         }
 
         user::ActiveModel {
             username: Set(username),
             email: Set(email),
             password: Set(password),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
             ..Default::default()
         }
         .insert(db)
         .await
-        .map_err(|e| Error::DBError(e))
+        .map_err(|e| AppError::DBError(e))
     }
 
     pub async fn login_user(
@@ -54,12 +57,12 @@ impl AuthService {
             let valid_user = validate_password(password, &user.password);
 
             if !valid_user {
-                return Err(Error::WrongCredentials);
+                Err(AppError::WrongCredentials)
             } else {
                 Ok(user)
             }
         } else {
-            Err(Error::WrongCredentials)
+            Err(AppError::WrongCredentials)
         }
     }
 
@@ -69,7 +72,7 @@ impl AuthService {
         if let Some(user) = user {
             Ok(user)
         } else {
-            Err(Error::InvalidToken)
+            Err(AppError::InvalidToken)
         }
     }
 }

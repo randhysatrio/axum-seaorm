@@ -6,13 +6,15 @@ use std::env;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 
+use ::migration::{Migrator, MigratorTrait};
+
 mod errors;
 mod handler;
 mod routes;
 mod services;
 mod utils;
 
-use routes::auth_routes;
+use routes::{auth_routes, category_routes};
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -30,6 +32,9 @@ pub async fn run() {
     let conn = Database::connect(database_url)
         .await
         .expect("Failed to connect to database");
+    Migrator::up(&conn, None)
+        .await
+        .expect("Failed to execute database migration");
 
     let app_state = AppState { conn };
 
@@ -39,6 +44,7 @@ pub async fn run() {
 
     let root_router = Router::new()
         .merge(auth_routes())
+        .merge(category_routes())
         .with_state(app_state)
         .layer(cors);
 

@@ -1,5 +1,5 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -38,12 +38,12 @@ pub fn generate_token(user_id: i32) -> APIResult<String> {
     Ok(token)
 }
 
-pub fn verify_token(token: &str) -> APIResult<TokenData<Claims>> {
+pub fn verify_token(token: &str) -> APIResult<Claims> {
     let token = jsonwebtoken::decode::<Claims>(
         token,
         &DecodingKey::from_secret(JWT_KEY.as_bytes()),
         &Validation::default(),
     )?;
 
-    Ok(token)
+    Ok(token.claims)
 }
