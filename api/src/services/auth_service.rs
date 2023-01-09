@@ -14,23 +14,25 @@ impl AuthService {
         email: String,
         password: String,
     ) -> APIResult<user::Model> {
-        if let Some(_) = User::find()
+        if (User::find()
             .filter(user::Column::Username.eq(username.as_str()))
             .one(db)
-            .await?
+            .await?)
+            .is_some()
         {
             return Err(AppError::DuplicateUsername);
         }
 
-        if let Some(_) = User::find()
+        if (User::find()
             .filter(user::Column::Email.eq(email.as_str()))
             .one(db)
-            .await?
+            .await?)
+            .is_some()
         {
             return Err(AppError::DuplicateEmail);
         }
 
-        user::ActiveModel {
+        Ok(user::ActiveModel {
             username: Set(username),
             email: Set(email),
             password: Set(password),
@@ -39,8 +41,7 @@ impl AuthService {
             ..Default::default()
         }
         .insert(db)
-        .await
-        .map_err(|e| AppError::DBError(e))
+        .await?)
     }
 
     pub async fn login_user(
@@ -48,13 +49,13 @@ impl AuthService {
         email: String,
         password: String,
     ) -> APIResult<user::Model> {
-        let user = User::find()
+        let find_user = User::find()
             .filter(user::Column::Email.eq(email))
             .one(db)
             .await?;
 
-        if let Some(user) = user {
-            let valid_user = validate_password(password, &user.password);
+        if let Some(user) = find_user {
+            let valid_user = validate_password(password, user.password.to_owned()).await?;
 
             if !valid_user {
                 Err(AppError::WrongCredentials)
@@ -66,7 +67,7 @@ impl AuthService {
         }
     }
 
-    pub async fn find_user_by_id(db: &DbConn, id: i32) -> APIResult<user::Model> {
+    pub async fn persistent_login(db: &DbConn, id: i32) -> APIResult<user::Model> {
         let user = User::find_by_id(id).one(db).await?;
 
         if let Some(user) = user {

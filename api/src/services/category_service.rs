@@ -1,22 +1,24 @@
 use chrono::Utc;
-use migration::Condition;
+use migration::{Condition, Expr, Func};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, IntoActiveModel, PaginatorTrait,
-    QueryFilter, QuerySelect, Set, Value,
+    ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, IntoActiveModel, ItemsAndPagesNumber,
+    PaginatorTrait, QueryFilter, Set,
 };
 
 use ::entity::{category, prelude::Category};
 
+use super::{page_matcher, size_matcher};
 use crate::errors::{APIResult, AppError};
 
 pub struct CategoryService;
 
 impl CategoryService {
     pub async fn create(db: &DbConn, name: String) -> APIResult<category::Model> {
-        if let Some(_) = Category::find()
+        if (Category::find()
             .filter(category::Column::Name.eq(name.as_str()))
             .one(db)
-            .await?
+            .await?)
+            .is_some()
         {
             return Err(AppError::DuplicateCategory);
         }
@@ -35,59 +37,84 @@ impl CategoryService {
         db: &DbConn,
         keyword: Option<String>,
         all: Option<bool>,
-        page: Option<u64>,
-        size: Option<u64>,
-    ) -> APIResult<(u64, Vec<category::Model>)> {
+        page: Option<i32>,
+        size: Option<i32>,
+    ) -> APIResult<(Vec<category::Model>, u64, u64)> {
         let mut condition = Condition::all();
 
-        if let Some(keyword) = keyword {
-            condition = condition.add(category::Column::Name.contains(keyword.as_str()));
+        if let Some(k) = keyword {
+            let like = format!("%{}%", k.to_lowercase());
+
+            condition = condition
+                .add(Expr::expr(Func::lower(Expr::col(category::Column::Name))).like(like));
         }
 
-        if let None = all {
+        if all.is_none() {
             condition = condition.add(category::Column::DeletedAt.is_null());
         }
 
-        let page = page.unwrap_or_else(|| 1);
-        let size = size.unwrap_or_else(|| 10);
-        let offset = size * page - size;
+        let size = size_matcher(size)?;
+        let page = page_matcher(page)?;
 
-        let count = Category::find().filter(condition.clone()).count(db).await?;
+        let ItemsAndPagesNumber {
+            number_of_items,
+            number_of_pages,
+        } = Category::find()
+            .filter(condition.clone())
+            .paginate(db, size)
+            .num_items_and_pages()
+            .await?;
         let data = Category::find()
             .filter(condition)
-            .offset(offset)
-            .limit(size)
-            .all(db)
+            .paginate(db, size)
+            .fetch_page(page)
             .await?;
 
-        Ok((count, data))
+        Ok((data, number_of_items, number_of_pages))
     }
 
     pub async fn delete(db: &DbConn, id: i32) -> APIResult<()> {
         let category = Category::find_by_id(id).one(db).await?;
 
-        let mut category = if let Some(category) = category {
-            category.into_active_model()
+        let mut category = if let Some(c) = category {
+            if c.deleted_at.is_none() {
+                c.into_active_model()
+            } else {
+                return Err(AppError::CategoryAlreadyDeleted);
+            }
         } else {
             return Err(AppError::CategoryNotFound);
         };
 
-        if let Value::ChronoDateTimeWithTimeZone(Some(_)) =
-            category.deleted_at.into_value().unwrap()
-        {
-            return Err(AppError::CategoryAlreadyDeleted);
-        };
-
         category.deleted_at = Set(Some(Utc::now().into()));
-
         category.update(db).await?;
 
         Ok(())
     }
 
+    #[allow(dead_code)] // for now;
     pub async fn hard_delete(db: &DbConn, id: i32) -> APIResult<String> {
         Category::delete_by_id(id).exec(db).await?;
 
         Ok("Category deleted successfully".to_string())
+    }
+
+    pub async fn restore(db: &DbConn, id: i32) -> APIResult<()> {
+        let category = Category::find_by_id(id).one(db).await?;
+
+        let mut category = if let Some(c) = category {
+            if c.deleted_at.is_none() {
+                return Err(AppError::CannotRestoreCategory);
+            } else {
+                c.into_active_model()
+            }
+        } else {
+            return Err(AppError::CategoryNotFound);
+        };
+
+        category.deleted_at = Set(None);
+        category.update(db).await?;
+
+        Ok(())
     }
 }

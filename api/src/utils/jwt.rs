@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use lazy_static::lazy_static;
@@ -46,4 +47,17 @@ pub fn verify_token(token: &str) -> APIResult<Claims> {
     )?;
 
     Ok(token.claims)
+}
+
+pub fn verify_token_middleware(token: &str) -> Result<Claims, (StatusCode, &'static str)> {
+    let token = jsonwebtoken::decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(JWT_KEY.as_bytes()),
+        &Validation::default(),
+    );
+
+    match token {
+        Ok(token) => Ok(token.claims),
+        Err(_) => Err((StatusCode::FORBIDDEN, "Invalid token")),
+    }
 }

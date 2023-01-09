@@ -5,6 +5,8 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -17,18 +19,30 @@ use crate::utils::{
 };
 use crate::AppState;
 
+lazy_static! {
+    static ref PASSWORD_REGEX: Regex = Regex::new(
+        r"(?x)^(?P<upper>[A-Z])(?P<lower>[a-z])(?P<digit>[0-9])[a-zA-Z0-9]{8,}$
+        "
+    )
+    .unwrap();
+}
+
 #[derive(Deserialize, Debug, Validate)]
 pub struct RegisterRequest {
     pub username: String,
     #[validate(email)]
     pub email: String,
+    #[validate(regex(
+        path = "PASSWORD_REGEX",
+        message = "Password must consist of min. 8 chars, 1 uppercase & lowercase letter, 1 number, no spaces and no special characters"
+    ))]
     pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterResponse {
     success: bool,
-    message: String,
+    message: &'static str,
 }
 
 pub async fn register_user(
@@ -43,7 +57,7 @@ pub async fn register_user(
         email,
         password,
     } = body;
-    let password = hash_password(password);
+    let password = hash_password(password).await?;
 
     AuthService::register_user(db, username, email, password).await?;
 
@@ -51,7 +65,7 @@ pub async fn register_user(
         StatusCode::CREATED,
         Json(RegisterResponse {
             success: true,
-            message: "Register success!".to_string(),
+            message: "Register success!",
         }),
     ))
 }
@@ -65,8 +79,8 @@ pub struct LoginRequest {
 #[derive(Serialize, Debug)]
 pub struct LoginResponse {
     success: bool,
-    message: String,
     token: String,
+    message: &'static str,
 }
 
 pub async fn login(
@@ -83,14 +97,15 @@ pub async fn login(
         StatusCode::OK,
         Json(LoginResponse {
             success: true,
-            message: "Login Successful!".to_string(),
             token,
+            message: "Login success!",
         }),
     ))
 }
 
 #[derive(Debug, Serialize)]
-pub struct PersistentLoginData {
+pub struct UserData {
+    id: i32,
     username: String,
     email: String,
 }
@@ -99,7 +114,7 @@ pub struct PersistentLoginData {
 pub struct PersistentLoginResponse {
     success: bool,
     token: String,
-    data: PersistentLoginData,
+    data: UserData,
 }
 
 pub async fn persistent_login(
@@ -111,10 +126,11 @@ pub async fn persistent_login(
     let verified_token = verify_token(user_token.token())?;
     let user_id = verified_token.user_id;
 
-    let user = AuthService::find_user_by_id(db, user_id).await?;
+    let user = AuthService::persistent_login(db, user_id).await?;
     let token = generate_token(user.id)?;
 
-    let data = PersistentLoginData {
+    let data = UserData {
+        id: user.id,
         username: user.username,
         email: user.email,
     };

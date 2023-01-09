@@ -9,12 +9,14 @@ use tower_http::cors::{Any, CorsLayer};
 use ::migration::{Migrator, MigratorTrait};
 
 mod errors;
+mod extractor;
 mod handler;
+mod middlewares;
 mod routes;
 mod services;
 mod utils;
 
-use routes::{auth_routes, category_routes};
+use routes::{auth_routes, brand_routes, category_routes, product_routes};
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -29,12 +31,17 @@ pub async fn run() {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
 
-    let conn = Database::connect(database_url)
-        .await
-        .expect("Failed to connect to database");
-    Migrator::up(&conn, None)
-        .await
-        .expect("Failed to execute database migration");
+    let conn = if let Ok(connection) = Database::connect(database_url).await {
+        connection
+    } else {
+        eprintln!("Failed to connect to database");
+        std::process::exit(1);
+    };
+
+    if (Migrator::up(&conn, None).await).is_err() {
+        eprintln!("Failed to execute database migration");
+        std::process::exit(1);
+    }
 
     let app_state = AppState { conn };
 
@@ -45,6 +52,8 @@ pub async fn run() {
     let root_router = Router::new()
         .merge(auth_routes())
         .merge(category_routes())
+        .merge(brand_routes())
+        .merge(product_routes())
         .with_state(app_state)
         .layer(cors);
 

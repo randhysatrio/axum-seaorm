@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use ::entity::category;
 
-use crate::errors::{APIResponse, AppError};
+use crate::errors::APIResponse;
 use crate::services::CategoryService;
 use crate::AppState;
 
@@ -15,14 +15,15 @@ use crate::AppState;
 pub struct CategoryQuery {
     keyword: Option<String>,
     all: Option<bool>,
-    page: Option<u64>,
-    size: Option<u64>,
+    page: Option<i32>,
+    size: Option<i32>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct CategoryResponse {
     success: bool,
-    count: u64,
+    total_items: u64,
+    total_page: u64,
     data: Vec<category::Model>,
 }
 pub async fn find_category(
@@ -38,13 +39,15 @@ pub async fn find_category(
         page,
     } = query;
 
-    let (count, data) = CategoryService::get(db, keyword, all, page, size).await?;
+    let (data, total_items, total_page) =
+        CategoryService::get(db, keyword, all, page, size).await?;
 
     Ok((
         StatusCode::OK,
         Json(CategoryResponse {
             success: true,
-            count,
+            total_items,
+            total_page,
             data,
         }),
     ))
@@ -92,6 +95,23 @@ pub async fn delete_category(
         Json(CategoryCRUDResponse {
             success: true,
             message: "Category deleted successfully!",
+        }),
+    ))
+}
+
+pub async fn restore_category(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+    let db = &state.conn;
+
+    CategoryService::restore(db, id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(CategoryCRUDResponse {
+            success: true,
+            message: "Category restored successfully!",
         }),
     ))
 }
