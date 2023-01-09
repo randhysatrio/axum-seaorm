@@ -57,8 +57,6 @@ pub async fn find_brands(
     State(state): State<AppState>,
     params: Result<Query<FindBrandsParams>, QueryRejection>,
 ) -> APIResponse<(StatusCode, Json<FindBrandsResponse>)> {
-    let db = &state.conn;
-
     let params = query_extractor(params)?;
 
     let FindBrandsParams {
@@ -68,6 +66,7 @@ pub async fn find_brands(
         all,
     } = params;
 
+    let db = &state.conn;
     let (data, total_items, total_page) = BrandService::get(db, keyword, page, size, all).await?;
 
     Ok((

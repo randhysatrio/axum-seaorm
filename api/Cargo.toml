@@ -24,4 +24,3 @@ chrono = "0.4.23"
 lazy_static = "1.4.0"
 entity = { path = "../entity" }
 migration = { path = "../migration" }
-axum-macros = "0.3.0"

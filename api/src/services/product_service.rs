@@ -1,9 +1,10 @@
 use chrono::Utc;
 use migration::{Condition, Expr, Func};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, IntoActiveModel, ItemsAndPagesNumber,
-    PaginatorTrait, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, FromQueryResult, IntoActiveModel,
+    ItemsAndPagesNumber, PaginatorTrait, QueryFilter, QuerySelect, Set,
 };
+use serde::Serialize;
 
 use ::entity::{
     brand, category,
@@ -13,6 +14,19 @@ use ::entity::{
 
 use super::{page_matcher, size_matcher};
 use crate::errors::{APIResult, AppError};
+
+#[derive(Serialize, Debug, FromQueryResult)]
+pub struct ProductData {
+    id: i32,
+    brand_id: i32,
+    category_id: i32,
+    name: String,
+    description: Option<String>,
+    price: i32,
+    stock: i32,
+    brand_name: String,
+    category_name: String,
+}
 
 pub struct ProductService;
 
@@ -82,7 +96,7 @@ impl ProductService {
         page: Option<i32>,
         size: Option<i32>,
         all: Option<bool>,
-    ) -> APIResult<(Vec<(product::Model, Option<brand::Model>)>, u64, u64)> {
+    ) -> APIResult<(Vec<ProductData>, u64, u64)> {
         let mut condition = Condition::all();
 
         if let Some(l) = keyword {
@@ -108,13 +122,29 @@ impl ProductService {
             number_of_pages,
         } = Product::find()
             .filter(condition.clone())
-            .find_also_related(Brand)
+            .left_join(Category)
+            .left_join(Brand)
             .paginate(db, size)
             .num_items_and_pages()
             .await?;
+
         let data = Product::find()
+            .select_only()
+            .columns([
+                product::Column::Id,
+                product::Column::BrandId,
+                product::Column::CategoryId,
+                product::Column::Name,
+                product::Column::Description,
+                product::Column::Price,
+                product::Column::Stock,
+            ])
+            .column_as(category::Column::Name, "category_name")
+            .column_as(brand::Column::Name, "brand_name")
             .filter(condition)
-            .find_also_related(Brand)
+            .left_join(Category)
+            .left_join(Brand)
+            .into_model::<ProductData>()
             .paginate(db, size)
             .fetch_page(page)
             .await?;

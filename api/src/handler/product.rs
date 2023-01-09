@@ -6,11 +6,13 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use ::entity::{brand, product};
-
-use crate::{errors::APIResponse, extractor::query_extractor, services::ProductService, AppState};
-
 use super::validate_payload;
+use crate::{
+    errors::APIResponse,
+    extractor::query_extractor,
+    services::{product_service::ProductData, ProductService},
+    AppState,
+};
 
 #[derive(Debug, Serialize)]
 pub struct ProductResponse {
@@ -82,14 +84,12 @@ pub struct FindProductsResponse {
     success: bool,
     total_page: u64,
     total_items: u64,
-    data: Vec<(product::Model, Option<brand::Model>)>,
+    data: Vec<ProductData>,
 }
 pub async fn find_products(
     State(state): State<AppState>,
     query: Result<Query<FindProductParams>, QueryRejection>,
 ) -> APIResponse<(StatusCode, Json<FindProductsResponse>)> {
-    let db = &state.conn;
-
     let query = query_extractor(query)?;
 
     let FindProductParams {
@@ -99,6 +99,7 @@ pub async fn find_products(
         all,
     } = query;
 
+    let db = &state.conn;
     let (data, total_items, total_page) =
         ProductService::find(db, keyword, page, size, all).await?;
 

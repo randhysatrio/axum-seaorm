@@ -1,7 +1,7 @@
 mod auth_service;
 mod brand_service;
 mod category_service;
-mod product_service;
+pub mod product_service;
 
 pub use auth_service::AuthService;
 pub use brand_service::BrandService;
