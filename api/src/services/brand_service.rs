@@ -91,4 +91,23 @@ impl BrandService {
 
         Ok(())
     }
+
+    pub async fn restore(db: &DbConn, id: i32) -> APIResult<()> {
+        let brand = Brand::find_by_id(id).one(db).await?;
+
+        let mut brand = if let Some(b) = brand {
+            if b.deleted_at.is_none() {
+                return Err(AppError::CannotRestoreBrand);
+            } else {
+                b.into_active_model()
+            }
+        } else {
+            return Err(AppError::BrandNotFound);
+        };
+
+        brand.deleted_at = Set(None);
+        brand.update(db).await?;
+
+        Ok(())
+    }
 }

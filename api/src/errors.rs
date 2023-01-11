@@ -29,6 +29,20 @@ pub enum AppError {
     WrongCredentials,
     #[error("Invalid token!")]
     InvalidToken,
+    // Path Error
+    #[error("Invalid path. Please check the url path")]
+    InvalidPath,
+    #[error("{0}")]
+    PathRequired(String),
+    // Body Error
+    #[error("{0}")]
+    InvalidBodyType(String),
+    #[error("{0}")]
+    InvalidBodySyntax(String),
+    #[error("{0}")]
+    MissingBodyContentType(String),
+    #[error("{0}")]
+    BodyBytesRejection(String),
     // Query Error
     #[error("{0}")]
     InvalidQuery(String),
@@ -52,15 +66,19 @@ pub enum AppError {
     BrandNotFound,
     #[error("Brand already deleted")]
     BrandAlreadyDeleted,
+    #[error("Brand cannot be restored")]
+    CannotRestoreBrand,
     // Product Error
     #[error("Product already created")]
     ProductAlreadyCreated,
     #[error("Product already deleted")]
     ProductAlreadyDeleted,
+    #[error("Cannot restore product")]
+    CannotRestoreProduct,
     #[error("Product not found")]
     ProductNotFound,
     #[error("Invalid stock amount")]
-    InvalidStockAmount,
+    InvalidStock,
     #[error("Invalid price")]
     InvalidPrice,
 }
@@ -82,6 +100,11 @@ impl From<AppError> for APIError {
             AppError::DuplicateEmail => StatusCode::CONFLICT,
             AppError::WrongCredentials => StatusCode::UNAUTHORIZED,
             AppError::InvalidToken => StatusCode::UNAUTHORIZED,
+            // Path error;
+            AppError::InvalidPath => StatusCode::UNPROCESSABLE_ENTITY,
+            AppError::PathRequired(_) => StatusCode::BAD_REQUEST,
+            // Body error;
+            AppError::InvalidBodyType(_) => StatusCode::UNPROCESSABLE_ENTITY,
             // Query error;
             AppError::InvalidQuery(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::InvalidPage => StatusCode::BAD_REQUEST,
@@ -97,7 +120,10 @@ impl From<AppError> for APIError {
             AppError::BrandAlreadyDeleted => StatusCode::CONFLICT,
             // Product errors;
             AppError::ProductAlreadyCreated => StatusCode::CONFLICT,
-            AppError::InvalidStockAmount => StatusCode::BAD_REQUEST,
+            AppError::ProductAlreadyDeleted => StatusCode::CONFLICT,
+            AppError::ProductNotFound => StatusCode::BAD_REQUEST,
+            AppError::CannotRestoreProduct => StatusCode::BAD_REQUEST,
+            AppError::InvalidStock => StatusCode::BAD_REQUEST,
             AppError::InvalidPrice => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

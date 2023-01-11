@@ -4,6 +4,7 @@ mod m20220101_000001_create_table;
 mod m20230103_030859_create_table_categories;
 mod m20230103_133654_create_table_brand;
 mod m20230105_095555_create_product_table;
+mod m20230111_035339_create_cart_table;
 
 pub struct Migrator;
 
@@ -15,6 +16,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20230103_030859_create_table_categories::Migration),
             Box::new(m20230103_133654_create_table_brand::Migration),
             Box::new(m20230105_095555_create_product_table::Migration),
+            Box::new(m20230111_035339_create_cart_table::Migration),
         ]
     }
 }

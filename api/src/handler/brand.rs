@@ -1,11 +1,11 @@
-use axum::extract::rejection::QueryRejection;
+use axum::extract::rejection::{PathRejection, QueryRejection};
 use axum::extract::{Path, Query};
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use ::entity::brand;
 
-use crate::extractor::query_extractor;
+use crate::extractor::{path_extractor, query_extractor};
 use crate::services::BrandService;
 use crate::{errors::APIResponse, AppState};
 
@@ -82,8 +82,9 @@ pub async fn find_brands(
 
 pub async fn delete_brand(
     State(state): State<AppState>,
-    Path(id): Path<i32>,
+    id: Result<Path<i32>, PathRejection>,
 ) -> APIResponse<(StatusCode, Json<BrandResponse>)> {
+    let id = path_extractor(id)?;
     let db = &state.conn;
 
     BrandService::delete(db, id).await?;
@@ -93,6 +94,29 @@ pub async fn delete_brand(
         Json(BrandResponse {
             success: true,
             message: "Brands deleted successfully".to_string(),
+        }),
+    ))
+}
+
+#[derive(Debug, Serialize)]
+pub struct RestoreBrandResponse {
+    success: bool,
+    message: &'static str,
+}
+pub async fn restore_brand(
+    State(state): State<AppState>,
+    id: Result<Path<i32>, PathRejection>,
+) -> APIResponse<(StatusCode, Json<RestoreBrandResponse>)> {
+    let id = path_extractor(id)?;
+    let db = &state.conn;
+
+    BrandService::restore(db, id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RestoreBrandResponse {
+            success: true,
+            message: "Brand restored successfully",
         }),
     ))
 }

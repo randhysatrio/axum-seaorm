@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{rejection::PathRejection, Path, Query, State},
     http::StatusCode,
     Json,
 };
@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use ::entity::category;
 
-use crate::errors::APIResponse;
 use crate::services::CategoryService;
 use crate::AppState;
+use crate::{errors::APIResponse, extractor::path_extractor};
 
 #[derive(Deserialize, Debug)]
 pub struct CategoryQuery {
@@ -84,8 +84,9 @@ pub async fn create_category(
 
 pub async fn delete_category(
     State(state): State<AppState>,
-    Path(id): Path<i32>,
+    id: Result<Path<i32>, PathRejection>,
 ) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+    let id = path_extractor(id)?;
     let db = &state.conn;
 
     CategoryService::delete(db, id).await?;
@@ -101,8 +102,9 @@ pub async fn delete_category(
 
 pub async fn restore_category(
     State(state): State<AppState>,
-    Path(id): Path<i32>,
+    id: Result<Path<i32>, PathRejection>,
 ) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+    let id = path_extractor(id)?;
     let db = &state.conn;
 
     CategoryService::restore(db, id).await?;

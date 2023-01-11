@@ -1,15 +1,11 @@
-use axum::{
-    extract::{rejection::QueryRejection, Path, Query, State},
-    http::StatusCode,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use super::validate_payload;
 use crate::{
     errors::APIResponse,
-    extractor::query_extractor,
+    extractor::{body_extractor, path_extractor, query_extractor, ReqBody, ReqPath, ReqQuery},
     services::{product_service::ProductData, ProductService},
     AppState,
 };
@@ -88,7 +84,7 @@ pub struct FindProductsResponse {
 }
 pub async fn find_products(
     State(state): State<AppState>,
-    query: Result<Query<FindProductParams>, QueryRejection>,
+    query: ReqQuery<FindProductParams>,
 ) -> APIResponse<(StatusCode, Json<FindProductsResponse>)> {
     let query = query_extractor(query)?;
 
@@ -114,24 +110,68 @@ pub async fn find_products(
     ))
 }
 
-#[derive(Debug, Serialize)]
-pub struct DeleteProductResponse {
-    success: bool,
-    message: &'static str,
+#[derive(Debug, Deserialize)]
+pub struct UpdateProductData {
+    pub name: Option<String>,
+    pub price: Option<i32>,
+    pub stock: Option<i32>,
+    pub description: Option<String>,
+    pub category_id: Option<i32>,
+    pub brand_id: Option<i32>,
 }
+
+pub async fn update_product(
+    State(state): State<AppState>,
+    id: ReqPath<i32>,
+    update_data: ReqBody<UpdateProductData>,
+) -> APIResponse<(StatusCode, Json<ProductResponse>)> {
+    let id = path_extractor(id)?;
+    let update_data = body_extractor(update_data)?;
+    let db = &state.conn;
+
+    ProductService::update(db, id, update_data).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ProductResponse {
+            success: true,
+            message: "Product updated successfully".to_owned(),
+        }),
+    ))
+}
+
 pub async fn delete_product(
     State(state): State<AppState>,
-    Path(id): Path<i32>,
-) -> APIResponse<(StatusCode, Json<DeleteProductResponse>)> {
+    id: ReqPath<i32>,
+) -> APIResponse<(StatusCode, Json<ProductResponse>)> {
+    let id = path_extractor(id)?;
     let db = &state.conn;
 
     ProductService::delete(db, id).await?;
 
     Ok((
         StatusCode::OK,
-        Json(DeleteProductResponse {
+        Json(ProductResponse {
             success: true,
-            message: "Product deleted successfully",
+            message: "Product deleted successfully".to_owned(),
+        }),
+    ))
+}
+
+pub async fn restore_product(
+    State(state): State<AppState>,
+    id: ReqPath<i32>,
+) -> APIResponse<(StatusCode, Json<ProductResponse>)> {
+    let id = path_extractor(id)?;
+    let db = &state.conn;
+
+    ProductService::restore(db, id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ProductResponse {
+            success: true,
+            message: "Product restored successfully".to_owned(),
         }),
     ))
 }

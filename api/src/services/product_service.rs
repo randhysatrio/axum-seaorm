@@ -1,8 +1,8 @@
 use chrono::Utc;
-use migration::{Condition, Expr, Func};
+use migration::{Condition, Expr, Func, IntoCondition, JoinType};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DbConn, EntityTrait, FromQueryResult, IntoActiveModel,
-    ItemsAndPagesNumber, PaginatorTrait, QueryFilter, QuerySelect, Set,
+    ItemsAndPagesNumber, PaginatorTrait, QueryFilter, QuerySelect, RelationTrait, Set,
 };
 use serde::Serialize;
 
@@ -13,7 +13,10 @@ use ::entity::{
 };
 
 use super::{page_matcher, size_matcher};
-use crate::errors::{APIResult, AppError};
+use crate::{
+    errors::{APIResult, AppError},
+    handler::product::UpdateProductData,
+};
 
 #[derive(Serialize, Debug, FromQueryResult)]
 pub struct ProductData {
@@ -41,7 +44,7 @@ impl ProductService {
         description: Option<String>,
     ) -> APIResult<product::Model> {
         if stock < 1 {
-            return Err(AppError::InvalidStockAmount);
+            return Err(AppError::InvalidStock);
         }
 
         if price < 1 {
@@ -122,8 +125,26 @@ impl ProductService {
             number_of_pages,
         } = Product::find()
             .filter(condition.clone())
-            .left_join(Category)
-            .left_join(Brand)
+            .join(
+                JoinType::LeftJoin,
+                product::Relation::Category
+                    .def()
+                    .on_condition(|_left_t, right_t| {
+                        Expr::tbl(right_t, category::Column::DeletedAt)
+                            .is_null()
+                            .into_condition()
+                    }),
+            )
+            .join(
+                JoinType::LeftJoin,
+                product::Relation::Brand
+                    .def()
+                    .on_condition(|_left_t, right_t| {
+                        Expr::tbl(right_t, brand::Column::DeletedAt)
+                            .is_null()
+                            .into_condition()
+                    }),
+            )
             .paginate(db, size)
             .num_items_and_pages()
             .await?;
@@ -142,14 +163,108 @@ impl ProductService {
             .column_as(category::Column::Name, "category_name")
             .column_as(brand::Column::Name, "brand_name")
             .filter(condition)
-            .left_join(Category)
-            .left_join(Brand)
+            .join(
+                JoinType::LeftJoin,
+                product::Relation::Category
+                    .def()
+                    .on_condition(|_left_t, right_t| {
+                        Expr::tbl(right_t, category::Column::DeletedAt)
+                            .is_null()
+                            .into_condition()
+                    }),
+            )
+            .join(
+                JoinType::LeftJoin,
+                product::Relation::Brand
+                    .def()
+                    .on_condition(|_left_t, right_t| {
+                        Expr::tbl(right_t, brand::Column::DeletedAt)
+                            .is_null()
+                            .into_condition()
+                    }),
+            )
             .into_model::<ProductData>()
             .paginate(db, size)
             .fetch_page(page)
             .await?;
 
         Ok((data, number_of_items, number_of_pages))
+    }
+
+    pub async fn update(db: &DbConn, id: i32, update_data: UpdateProductData) -> APIResult<()> {
+        let UpdateProductData {
+            name,
+            price,
+            stock,
+            description,
+            category_id,
+            brand_id,
+        } = update_data;
+
+        let mut product = if let Some(p) = Product::find_by_id(id).one(db).await? {
+            if p.deleted_at.is_some() {
+                return Err(AppError::ProductAlreadyDeleted);
+            } else {
+                p.into_active_model()
+            }
+        } else {
+            return Err(AppError::ProductNotFound);
+        };
+
+        if let Some(c) = category_id {
+            if (Category::find_by_id(c)
+                .filter(brand::Column::DeletedAt.is_null())
+                .one(db)
+                .await?)
+                .is_none()
+            {
+                return Err(AppError::CategoryNotFound);
+            } else {
+                product.category_id = Set(c);
+            }
+        }
+
+        if let Some(b) = brand_id {
+            if (Brand::find_by_id(b)
+                .filter(brand::Column::DeletedAt.is_null())
+                .one(db)
+                .await?)
+                .is_none()
+            {
+                return Err(AppError::BrandNotFound);
+            } else {
+                product.brand_id = Set(b);
+            }
+        }
+
+        if let Some(n) = name {
+            product.name = Set(n);
+        }
+
+        if let Some(p) = price {
+            if p < 1 {
+                return Err(AppError::InvalidPrice);
+            } else {
+                product.price = Set(p);
+            }
+        }
+
+        if let Some(s) = stock {
+            if s < 1 {
+                return Err(AppError::InvalidStock);
+            } else {
+                product.stock = Set(s);
+            }
+        }
+
+        if description.is_some() {
+            product.description = Set(description);
+        }
+
+        product.updated_at = Set(Utc::now().into());
+        product.update(db).await?;
+
+        Ok(())
     }
 
     pub async fn delete(db: &DbConn, id: i32) -> APIResult<()> {
@@ -164,6 +279,23 @@ impl ProductService {
         };
 
         product.deleted_at = Set(Some(Utc::now().into()));
+        product.update(db).await?;
+
+        Ok(())
+    }
+
+    pub async fn restore(db: &DbConn, id: i32) -> APIResult<()> {
+        let mut product = if let Some(p) = Product::find_by_id(id).one(db).await? {
+            if p.deleted_at.is_none() {
+                return Err(AppError::CannotRestoreProduct);
+            } else {
+                p.into_active_model()
+            }
+        } else {
+            return Err(AppError::ProductNotFound);
+        };
+
+        product.deleted_at = Set(None);
         product.update(db).await?;
 
         Ok(())

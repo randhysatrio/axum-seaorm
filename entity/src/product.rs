@@ -29,6 +29,8 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     Brand,
+    #[sea_orm(has_many = "super::cart::Entity")]
+    Cart,
     #[sea_orm(
         belongs_to = "super::category::Entity",
         from = "Column::CategoryId",
@@ -42,6 +44,12 @@ pub enum Relation {
 impl Related<super::brand::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Brand.def()
+    }
+}
+
+impl Related<super::cart::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Cart.def()
     }
 }
 
