@@ -16,7 +16,7 @@ mod routes;
 mod services;
 mod utils;
 
-use routes::{auth_routes, brand_routes, category_routes, product_routes};
+use routes::{auth_routes, brand_routes, cart_routes, category_routes, product_routes};
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -54,6 +54,7 @@ pub async fn run() {
         .merge(category_routes())
         .merge(brand_routes())
         .merge(product_routes())
+        .merge(cart_routes())
         .with_state(app_state)
         .layer(cors);
 

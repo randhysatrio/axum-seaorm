@@ -4,6 +4,7 @@ use crate::errors::APIResult;
 
 pub mod auth;
 pub mod brand;
+pub mod cart;
 pub mod category;
 pub mod product;
 

@@ -1,12 +1,14 @@
 mod auth_service;
 mod brand_service;
+mod cart_service;
 mod category_service;
-pub mod product_service;
+mod product_service;
 
 pub use auth_service::AuthService;
 pub use brand_service::BrandService;
+pub use cart_service::{CartData, CartService};
 pub use category_service::CategoryService;
-pub use product_service::ProductService;
+pub use product_service::{ProductData, ProductService};
 
 use crate::errors::{APIResult, AppError};
 
@@ -29,9 +31,9 @@ pub fn size_matcher(size: Option<i32>) -> APIResult<u64> {
             if s <= 0 {
                 Err(AppError::InvalidSize)
             } else {
-                Ok((s - 1) as u64)
+                Ok((s) as u64)
             }
         }
-        None => Ok(0),
+        None => Ok(10),
     }
 }

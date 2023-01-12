@@ -1,7 +1,6 @@
-use axum::middleware;
-use axum::routing::{delete, patch};
 use axum::{
-    routing::{get, post},
+    middleware,
+    routing::{delete, get, patch, post},
     Router,
 };
 

@@ -6,7 +6,7 @@ use super::validate_payload;
 use crate::{
     errors::APIResponse,
     extractor::{body_extractor, path_extractor, query_extractor, ReqBody, ReqPath, ReqQuery},
-    services::{product_service::ProductData, ProductService},
+    services::{ProductData, ProductService},
     AppState,
 };
 
@@ -74,7 +74,6 @@ pub struct FindProductParams {
     size: Option<i32>,
     all: Option<bool>,
 }
-
 #[derive(Debug, Serialize)]
 pub struct FindProductsResponse {
     success: bool,

@@ -29,6 +29,8 @@ pub enum AppError {
     WrongCredentials,
     #[error("Invalid token!")]
     InvalidToken,
+    #[error("User not found")]
+    UserNotFound,
     // Path Error
     #[error("Invalid path. Please check the url path")]
     InvalidPath,
@@ -81,6 +83,11 @@ pub enum AppError {
     InvalidStock,
     #[error("Invalid price")]
     InvalidPrice,
+    // Cart Error
+    #[error("Invalid quantity")]
+    InvalidQuantity,
+    #[error("Not sufficient currently available item stock")]
+    InsufficientStock,
 }
 
 // 1. APIResult is an Option enum for handling all internal API process that could potentially fail;
@@ -100,11 +107,14 @@ impl From<AppError> for APIError {
             AppError::DuplicateEmail => StatusCode::CONFLICT,
             AppError::WrongCredentials => StatusCode::UNAUTHORIZED,
             AppError::InvalidToken => StatusCode::UNAUTHORIZED,
+            AppError::UserNotFound => StatusCode::BAD_REQUEST,
             // Path error;
             AppError::InvalidPath => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::PathRequired(_) => StatusCode::BAD_REQUEST,
             // Body error;
             AppError::InvalidBodyType(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            AppError::InvalidBodySyntax(_) => StatusCode::BAD_REQUEST,
+            AppError::MissingBodyContentType(_) => StatusCode::BAD_REQUEST,
             // Query error;
             AppError::InvalidQuery(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::InvalidPage => StatusCode::BAD_REQUEST,
@@ -125,6 +135,9 @@ impl From<AppError> for APIError {
             AppError::CannotRestoreProduct => StatusCode::BAD_REQUEST,
             AppError::InvalidStock => StatusCode::BAD_REQUEST,
             AppError::InvalidPrice => StatusCode::BAD_REQUEST,
+            // Cart errors;
+            AppError::InvalidQuantity => StatusCode::BAD_REQUEST,
+            AppError::InsufficientStock => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

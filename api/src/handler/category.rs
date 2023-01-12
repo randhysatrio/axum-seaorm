@@ -18,9 +18,8 @@ pub struct CategoryQuery {
     page: Option<i32>,
     size: Option<i32>,
 }
-
 #[derive(Serialize, Debug)]
-pub struct CategoryResponse {
+pub struct FindCategoryResponse {
     success: bool,
     total_items: u64,
     total_page: u64,
@@ -29,7 +28,7 @@ pub struct CategoryResponse {
 pub async fn find_category(
     State(state): State<AppState>,
     Query(query): Query<CategoryQuery>,
-) -> APIResponse<(StatusCode, Json<CategoryResponse>)> {
+) -> APIResponse<(StatusCode, Json<FindCategoryResponse>)> {
     let db = &state.conn;
 
     let CategoryQuery {
@@ -44,7 +43,7 @@ pub async fn find_category(
 
     Ok((
         StatusCode::OK,
-        Json(CategoryResponse {
+        Json(FindCategoryResponse {
             success: true,
             total_items,
             total_page,
@@ -54,7 +53,7 @@ pub async fn find_category(
 }
 
 #[derive(Serialize, Debug)]
-pub struct CategoryCRUDResponse {
+pub struct CategoryResponse {
     success: bool,
     message: &'static str,
 }
@@ -66,7 +65,7 @@ pub struct CreateCategoryRequest {
 pub async fn create_category(
     State(state): State<AppState>,
     Json(body): Json<CreateCategoryRequest>,
-) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+) -> APIResponse<(StatusCode, Json<CategoryResponse>)> {
     let db = &state.conn;
 
     let CreateCategoryRequest { name } = body;
@@ -75,7 +74,7 @@ pub async fn create_category(
 
     Ok((
         StatusCode::CREATED,
-        Json(CategoryCRUDResponse {
+        Json(CategoryResponse {
             success: true,
             message: "Category created successfully!",
         }),
@@ -85,7 +84,7 @@ pub async fn create_category(
 pub async fn delete_category(
     State(state): State<AppState>,
     id: Result<Path<i32>, PathRejection>,
-) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+) -> APIResponse<(StatusCode, Json<CategoryResponse>)> {
     let id = path_extractor(id)?;
     let db = &state.conn;
 
@@ -93,7 +92,7 @@ pub async fn delete_category(
 
     Ok((
         StatusCode::OK,
-        Json(CategoryCRUDResponse {
+        Json(CategoryResponse {
             success: true,
             message: "Category deleted successfully!",
         }),
@@ -103,7 +102,7 @@ pub async fn delete_category(
 pub async fn restore_category(
     State(state): State<AppState>,
     id: Result<Path<i32>, PathRejection>,
-) -> APIResponse<(StatusCode, Json<CategoryCRUDResponse>)> {
+) -> APIResponse<(StatusCode, Json<CategoryResponse>)> {
     let id = path_extractor(id)?;
     let db = &state.conn;
 
@@ -111,7 +110,7 @@ pub async fn restore_category(
 
     Ok((
         StatusCode::OK,
-        Json(CategoryCRUDResponse {
+        Json(CategoryResponse {
             success: true,
             message: "Category restored successfully!",
         }),

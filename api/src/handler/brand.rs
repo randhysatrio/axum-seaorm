@@ -45,7 +45,6 @@ pub struct FindBrandsParams {
     size: Option<i32>,
     all: Option<bool>,
 }
-
 #[derive(Serialize, Debug)]
 pub struct FindBrandsResponse {
     success: bool,
